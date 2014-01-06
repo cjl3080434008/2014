@@ -7,6 +7,8 @@
 4.《微积分学教程》(一卷一卷来)
 
 5.《the art of multiprocess programming》(JAVA实现，最低优先级)
+	
+6.《glibc感兴趣源码剖析工作》
 
 
 
