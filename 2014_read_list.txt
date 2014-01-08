@@ -12,5 +12,7 @@
 
 7.《链接器和加载器》
 
+8.《a little java, a few patterns》//write oo code with few patterns
+
 
 
