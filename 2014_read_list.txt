@@ -1,5 +1,12 @@
 1.《SICP》
 
-2.《postgreSQL数据库内核剖析》
+2.《postgreSQL数据库内核剖析》(慢慢进行)
 
 3.《how to solve it》
+
+4.《微积分学教程》(一卷一卷来)
+
+5.《the art of multiprocess programming》(JAVA实现，最低优先级)
+
+
+
