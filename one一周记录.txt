@@ -1,0 +1,202 @@
+12.awk学习， awk 'program' data  ||||or |||| data | awk 'program'
+
+
+====================
+====================
+====================
+====================
+====================
+
+1.MySQL表锁的操作语句。  select * from table where id = xx for update;   //for update 就是表锁的关键字。
+
+2.go的接口编程方式：
+在一个接口go文件中，定义接口
+在多个实现go文件中，实现该接口的编程方式。
+
+3.go bytes包，做一些字符串匹配的操作，针对byte数组。 对于string可用strconv
+
+4.val = bytes.Trim(val, `"`) //针对引号
+
+5.c++返回引用的函数也要用引用变量接受。  ptr &getxxx();  
+			ptr &_ptr = getxxx();
+
+6.垃圾回收器，是基于图（从一个节点一定可以遍历完所有的in
+use节点。），这样就可以将所有不在图内的节点删除。				mark &
+clear，先标记再清楚
+
+7.boost::ptime使用
+
+8.关于Log
+
+9.node.js的事件监听器模式是一种事件钩子的机制。
+
+10.获取C++
+vector中元素的地址会出现奇怪的现象，获得一个位置地址的垃圾对象。因为它返回的就是引用，而引用虽然是对象本身的别名但是取引用的地址并不能得到对象的地址
+
+
+====================
+====================
+====================
+====================
+===================
+
+1.trie树，重新学习
+http://www.instapaper.com/read/442680831
+考虑空间与时间的复杂度而言，主要是实现双数组的形势来存储当前节点已经其多个子节点。
+
+2.C++/C中，对于存数组int t[];的复制操作时, 是对t.size()敏感的。  如int t[1];
+int p[2];   t = p;是不能通过编译的。
+
+3.python	------>		python中如果子类有自己的构造函数，不会自动调用父类的构造函数，如果需要用到父类的构造函数，则需要在子类的构造函数中显式的调用。
+
+子类从多个父类派生，而子类又没有自己的构造函数时，
+
+（1）按顺序继承，哪个父类在最前面且它又有自己的构造函数，就继承它的构造函数；
+
+（2）如果最前面第一个父类没有构造函数，则继承第2个的构造函数，第2个没有的话，再往后找，以此类推。(如果都没有就继续往上找--->object对象)
+
+
+4.C语言 struct的内存布局(需要注意的是内存以结构体中的最大步长为单位,
+		1、2、4、8bytes以此类推)
+//在64bit的机器上
+struct foo6 {
+    char c;           /* 1 byte*/
+    char pad1[7];     /* 7 bytes */
+    struct foo6_inner {
+        char *p;      /* 8 bytes */
+        short x;      /* 2 bytes */
+        char pad2[6]; /* 6 bytes */
+    } inner;
+};
+24bytes的数据浪费了13bytes
+
+5.what is Monads in function language, monads is a structure that represents
+computations defined as sequence of steps.
+是一种按步骤进行操作的一种程序表现形式（例如pipeline）
+
+
+
+6.Y combinator(7步实现一个简单的Y结合子)
+			（1）简单的递归
+			（2）显示递归（函数自己调用自己---无限循环，栈溢出）
+			（3）有条件的显示递归、并包装成一个函数
+			var fact = (function(f){
+							return function(n){
+								if (n < 2) return 1;
+								return n * f(f)(n - 1);
+							};
+						})(function(f){
+								return function(n){
+									if (n < 2) return 1;
+									return n * f(f)(n - 1);
+								};
+							});
+			（4）减少代码的重复
+			var recur = function(f){ return f(f); };
+			这样就减少了重复代码量。
+			
+			（5）如何消除双重调用f(f)？
+			把f(f)(n - 1)看成一个整体，提取出一个function g;
+			g = function(n){ return f(f)(n); }
+			然后替换。
+
+			（6）将代码进一步封装 (这一步的封装时重点，也比较难懂)
+			var wrap = function(h){
+				return recur(function(f){
+						var g = function(n){
+							return f(f)(n);
+						};
+						return h(g);
+				});
+			};
+
+			var fact = wrap(function(g) {
+						return function(n){
+							if (n < 2) return 1;
+							return n * g(n - 1);
+						};
+					});
+
+			（7） 将g函数内敛进wrap中（这步不难）
+			var wrap = function(h){
+				return recur(function(f){
+						return h(function(n){
+								return f(f)(n);
+							});
+						});
+			};
+
+
+			（8） 将recur内敛进wrap中形成Y combinator
+			var Y = function(h){
+				return function(function(f){
+					return f(f);	
+				})(function (f){
+					return h(function(n){
+							return f(f)(n);
+						});
+					});
+			};
+
+
+================================================================
+================================================================
+================================================================
+2014/01/06
+1.strcpy 与 strdup的区别：
+strdup是由malloc来分配内存，并由free释放内存。  to = strdup(from);
+strcpy则是实现已经分配好了内存，且strcpy(to, from) ;
+to与from的地址不能重叠。
+
+2.RedditMQ (can use python client)
+
+3.信号处理------>进程间通信的一种，SIGKILL &
+SIGSTOP是不能被屏蔽的信号，而一般而言在程序开始的时候都先屏蔽所有的信号，然后再在各个进程中注册需要监控的信号及其处理函数。
+
+4.time wheeling
+设计，用shared_ptr以及weak_ptr（自动提升能力来检测链接是否存在），在桶中放置shared_ptr当桶失效的时候自动析构（减少引用计数），在conn连接中保存weak_ptr当有新数据进来的时候可以提升为shared_ptr并放入到当前桶中。通过使用boost::circule_buffer其在插入一个桶的时候会将最开始的桶弹出并析构其中的所有shared_ptr.
+桶中存放的数据entry ------> 带有weak_ptr的conn信息。
+weak_ptr由shared_ptr构造conn信息原始是保存在shared_ptr中的。在entry的析构函数中会主动提升weak_ptr，如果返回的是null
+ptr则conn对象已经被释放，如果不是Null则需要手动释放。在析构桶数据的时候析构shared_ptr（shared_ptr减少对象的引用计数知道为0的时候析构对象）。
+
+5.yacc & lex编写简单的编译器
+通过lex来编写简单的词法分析程序
+
+
+6.高阶函数（first function type）:    如果一个函数以函数作为实在参数，或者返回函数作为值，那么它就是一个高阶函数（high-order function），也称为函数形式。
+
+7.如果再对活动这块做设计的话，我将人物的所有数据都存在一个playerinfo中，然后统一由festival_mgr控制，将数据与逻辑部分分类
+
+
+================================================================
+================================================================
+================================================================
+2014/01/20
+1. visitor pattern					访问者模式适用于数据结构相对未定的系统，它把数据结构和作用于结构上的操作之间的耦合解脱开，使得操作集合可以相对自由地演化。
+访问者设计模式的一个实例----->用以理解其设计原理：
+银行的各个窗口都能处理多种业务，每个客户进来以后随机选取窗口，进行不同业务的处理，而在程序实现中，业务之间的调度将成为性能的瓶颈。现在的一个解决方案，在client进门的时候，设置一个visitor来询问每个client所要办理的业务，然后将他们安排到对应的业务窗口中，这样每个窗口就能只办理固定业务提高效率。
+
+2.面向对象的设计原则中最重要的便是所谓的"开一闭"原则。一个软件系统的设计应当尽量做到对扩展开放，对修改关闭。达到这个原则的途径就是遵循"对变化的封装"的原则。这个原则讲的是在进行软件系统的设计时，应当设法找出一个软件系统中会变化的部分，将之封装起来。
+
+3.C++模板嵌套：	template <typename U, typename V> ---> tmp<int, int>这样
+				template <typename U, template<typename k, typename v> class
+				T>  -----> tmp<int, T<k,v> >
+
+4.　generic Programming的思想精髓是基于接口编程（相对于OOP，连多态所需的基类都不要了），它的技术出发点是选择子，核心技术是：类型推导、类型萃取、特化/偏特化，其成果是STL库：一组通用容器和一组操作于通用容器上的通用算法. 
+generative programming的思想精髓是基于策略编程（编译器根据策略自动生成所需代码，由于具有更高的抽象性，所以代码复用度也更高），在Loki库的实现中，目前只使用了递归策略，它的技术出发点是Typelist，核心技术是：类型推导、类型萃取、特化/偏特化、多重继承、类型间去耦合，其成果是Loki库：对设计模式的封装. 
+C++ 模板元编程实例   Loki库 。
+什么是模板的特化、偏特化呢？大致的意思为：如果一个template拥有一个或者一个以上的template参数，我们可以针对其中一个或者多个参数进行特化处理（如果全部进行特化处理就是全特化，否则就是偏特化，切记：函数模板只能进行全特化，不能进行部分特化）。也就是说，我们可以提供一个特别版本，符合泛化条件，但是其中某些（全部）template参数已经由实际类型或者数值取代。
+
+5.红黑树的插入情况：（如果有节点的color发生变化，则需要对改节点进行插入性质检测）
+	1、node_insert->parent == null_node; ---> node_insert->color = BLACK;
+	2、node_insert->parent->color == BLACK;  fine!!	
+	3、node_insert->parent->color == RED;  uncle->color == RED; --->
+	node_insert->parent->color = BLACK; uncle->color = BLACK; grandpa->color =
+	RED; ---->继续对grandpa进行插入检测
+	4、uncle->color = BLACK; 此时如果node_insert
+	是parent的left/right，且parent
+	是grandpa的left/right，既形成了LL,RR形式，则对rotate_right/left(grandpa);
+	5、否则出现LR,RL情况，则先转换成LL,RR型，LR--->rotate_left(parent)
+	RL--->rotate_right(parnet)再交给(4)处理。
+
+
