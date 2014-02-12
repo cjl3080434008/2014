@@ -196,7 +196,10 @@ C++ 模板元编程实例   Loki库 。
 	4、uncle->color = BLACK; 此时如果node_insert
 	是parent的left/right，且parent
 	是grandpa的left/right，既形成了LL,RR形式，则对rotate_right/left(grandpa);
+	grandpa->color = RED; parent->color = BLACK;
 	5、否则出现LR,RL情况，则先转换成LL,RR型，LR--->rotate_left(parent)
 	RL--->rotate_right(parnet)再交给(4)处理。
+
+
 
 
