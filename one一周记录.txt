@@ -220,7 +220,8 @@ element时返回std::pair<iterator, bool>
 在insert(iterator first, iterator last)的时候不返回void
 且set插入会自动保持有序，所以最有效的插入式刚好插到有序的那个point之后。
 
-2.C++中定义类型的typename使用(内嵌依赖类型)，
+2.C++中定义类型的typename使用(内嵌依赖类型)、（因为缺省情况下内嵌依赖类型不被C++编译器视为类型）---》所以需要typename
+来让编译器当这个内嵌类型为一种类型，
 如果要用其他已有C++的类型来充当新类中的类型，我们需要typedef typename
 std::list<T>::iterator iterator;
 iterator是list的内嵌类型，
@@ -259,7 +260,15 @@ exception那么有可能导致资源泄露.
 
 11.类型转换的两种写法：  1、C类型 （T）expression    2.函数类型T（expression）
 
-12.
+12.宏定义并不重视作用域这个概念。
+
+13.C++ mutable关键字-----》因为要遵循bitwise constness原则所以对于const
+成员函数其不能修改内部non-static成员变量。如果想要修改但又不想编译不通过，就需要对修改的变量加上mutable修饰。
+
+14.局部静态变量与non-local static variable ：
+局部静态变量的作用域只在局部，它保存在静态存储区中，但当离开了当前作用域就再也访问不到了（可以说是一种内存泄漏式的浪费，除非返回改对象的引用或者指针。）
+注意static这个关键字很大程度上表示当前编译单元可见而非全局可见------->静态全局变量
+VS 普通全局变量的区别在此。
 
 
 
