@@ -293,7 +293,58 @@ VS 普通全局变量的区别在此。
 　　3、终止：如果程序可以在某种条件下终止，那么在终止的时候，就可以得到自己想要的正确结果。 
 
 
-2.
+2. C++闭包------> 
+
+[]        Capture nothing (or, a scorched earth strategy?)
+[&]       Capture any referenced variable by reference
+[=]       Capture any referenced variable by making a copy
+[=, &foo] Capture any referenced variable by making a copy, but capture variable foo by reference
+[bar]     Capture bar by making a copy; don't copy anything else
+[this]    Capture the this pointer of the enclosing class
+
+3.在用select来监听fifo的fd（比如管道）的时候，需要将RDWR文件属性开启，而不是只开启RDONLY。
+管道的多写是非原子性的需要锁来保护。     通过pipe(int
+		fd[2]);在内核中创建一个管道，然后通过读写fd[0],
+	fd[1]来判断是否有数据，因为管道的BUFF在内核中设定所以不能写太多的数据适合做消息传递，但可以写一个简单的字符来做消息到达的标示。
+	signal(SIGPIPE, SIG_IGN);
+	防止因为对一个close的端口（fd）进行读写而出发SIGPIPE退出进程。
+
+4.write，read时候的错误处理：如果网络操作无法立即完成(readable/writeable == 0 或 read/write的错误码是EWOULDBLOCK) 则将请求保存在pendingread/pendingwrite中.
+
+
+5. __asm__ volatile("" : : : "memory");
+使用在确定下面的代码不要被优化到上面去的时候就在那行代码上加入这个编译器指令来确保编译器不会对这段代码进行顺序优化。
+
+6.多线程编程中的锁的时候	<什么时候使用什么样的锁> ：
+			Mutex：属于sleep-waiting类型的锁.
+			spinlock：也称自旋锁,是属于busy-waiting类型的锁.在多处理器环境中,
+			自旋锁最多只能被一个可执行线程持有。如果一个可执行线程试图获得一个被争用(已经被持有的)自旋锁，那么该线程就会一直进行忙等待，自旋，也就是空转，等待锁重新可用。如果锁未被争用，请求锁的执行线程便立刻得到它，继续执行。（小心其的忙等待情形，所以spinlock不应该被长时间的持有，他的临界区保护应该尽量小）Kernel中的自旋锁不能够在能够导致睡眠的环境中使用。举个例子，一个线程A获得了自旋锁L；这个时候，发生了中断，在对应的中断处理函数B中，也尝试获得自旋锁L，就会中断处理程序进行自旋。但是原先锁的持有者只有在中断处理程序结束后，采用机会释放自旋锁，从而导致死锁。
+由于涉及到多个处理器环境下，spin lock的效率非常重要。因为在等待spin lock的过程，处理器只是不停的循环检查，并不执行其他指令。但即使这样， 一般来说，spinlock的开销还是比进程调度(context switch）少得多。这就是spin lock 被广泛应用在多处理器环境的原因
+			读写锁：读写锁实际是一种特殊的自旋锁，它把对共享资源的访问者划分成读者和写者，读者只对共享资源进行读访问，写者则需要对共享资源进行写操作。这种锁相对于自旋锁而言，能提高并发性，因为在多处理器系统中，它允许同时有多个读者来访问共享资源，最大可能的读者数为实际的逻辑CPU数。写者是排他性的，一个读写锁同时只能有一个写者或多个读者（与CPU数相关），但不能同时既有读者又有写者。 
+　在读写锁保持期间也是抢占失效的。 
+如果读写锁当前没有读者，也没有写者，那么写者可以立刻获得读写锁，否则它必须自旋在那里，直到没有任何写者或读者。如果读写锁没有写者，那么读者可以立即获得该读写锁，否则读者必须自旋在那里，直到写者释放该读写锁。（因为存在自旋的情况，如果再写锁写的数据大的时候是不适合用读写锁的，或者临界区过大的时候。）
+
+
+7.linux下线程私有数据的创建以及使用： pthread_key_t ---->
+对线程私有数据的访问key.
+pthread_key_create();调用并不能确保线程安全，所以可以出现多个线程看到的key不一致的情况（原则上别的线程可以看到你的Key并访问你的私有数据），通过pthread_once(pthread_once_t
+	*flag, void (*fn)(void));来保证原子性。
+在使用pthread_once的时候需要，需要保证flag是一个非本地变量（静态或者全局），且
+*flag = PTHREAD_ONCE_INIT;
+void generate_pthread_key();
+pthread_once(flag, generate_pthread_key);
+通过pthread_setspecific(pthread_key_t key, const void
+	*data);将key于私有数据关联。
+void *pthread_getspecific(pthread_key_t key);  获得线程的私有数据。
+全局只需要一个pthread_key_t，它在每个线程下面是具有不同的数据的。
+
+8.游戏引擎中的SIMD运算，在c++中有实际的__m128这个变量来表示，它被编译器直接存于CPU的SSE寄存器中以供引擎的数学计算。
+
+9.内存对齐，当对于局部变量编译器会负责帮我们对齐，但当时malloc或者new的对象的时候就需要我们自己来做内存对齐了。
+
+10.
+
+
 
 
 
