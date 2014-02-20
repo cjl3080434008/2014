@@ -342,9 +342,21 @@ void *pthread_getspecific(pthread_key_t key);  获得线程的私有数据。
 
 9.内存对齐，当对于局部变量编译器会负责帮我们对齐，但当时malloc或者new的对象的时候就需要我们自己来做内存对齐了。
 
-10.
+10. C++的无类型参数模板<即传入基础类型>， template<int size>....
 
+11. C++中的内部链接与外部链接变量 
+内部链接变量：
+1.加 static 前缀的全局变量定义.如: static int x;
+2.枚举类型的定义.如: enum Boolean {NO,YES };
+3.类的定义. 如: class Point { int d_x; int d_y; ... };
+4.内联函数的定义.如: inline int operator==(const Point& left,const Point&right) { ... }
+5.union的定义.
+6.名字空间中const常量定义
 
-
+外部链接变量：
+1.非内联的类成员函数.如: Point& Point::operator+=(const Point& right) { ... }
+2.非内联,非静态的自由函数. 如: Point operator+(const Point& left, const Point& right) { ... }
+3.非静态的全局定义.
+当用extern修饰const变量将强制为其分配内存，因为extern表示采用外部链接，因此其必须有某个地址保存其值。
 
 
