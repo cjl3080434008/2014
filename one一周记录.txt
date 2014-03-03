@@ -372,3 +372,131 @@ void *pthread_getspecific(pthread_key_t key);  获得线程的私有数据。
 2014/02/24
 1.C++的继承体系中可以继承static成员函数，
 而且可以通过类的实例来调用static成员函数。
+
+2. .h文件中可不能进行循环引用，使用前向声明来解决这个问题。
+
+3.Memory Barriers（内存屏障）, 
+为啥需要内存屏障？
+编译器优化，打乱代码的顺序
+CPU的乱序执行、延期及合并、预加载、分支预测、以及多种类型的缓存，都会打乱代码的顺序
+内存屏障的种类
+Write Memory Barriers
+Data Dependency Barriers
+Read Memory Barriers
+General Memory Barriers
+
+CPU对于相互依赖的操作时不会进行乱序的，只有对相互没有依赖的操作才会进行乱序优化。（原则就是乱序了也不能影响程序的结果）
+
+	CPU级别的内存屏障：
+GCC的通用内存屏障(CPU级别)
+__sync_synchronize (...)
+X86-64的内存屏障(摘自Linux实现)
+#define smp_mb() asm volatile("mfence":::"memory")
+#define smp_rmb() asm volatile("lfence":::"memory")
+#define smp_wmb() asm volatile("sfence" ::: "memory")
+#define smp_read_barrier_depends() do { } while (0) //why?
+	编译器级别的内存屏障：
+__asm__ volatile("" ::: "memory")
+
+4.游戏AI的设计：（输入-----> AI模型 -----> 输出执行动作 ------> 输入）
+（1）可以直接以脚本的形式来编写并挂到逻辑上
+（2）用FSM来做
+（3）用行为树来做。
+
+通过行为树主要要构造出这个AI模型的行为树结构，然后挂到AI对象上进行执行。
+
+5.C++用多态（源于virtual
+table）来完成继承类对象中函数的调用,而在C中往往是内部设置一个局部变量
+func和args指针，然后在初始化的时候传入已经定义好的函数指针以及数据，在调用的地方取出来执行就好。
+
+6.通过socketpair来实现进程之间或线程之间的全双工通信。 int s[2];
+if (socketpair(AF_UNIX, SOCK_STREAM, 0, s) == -1){ exit(-1);}
+s[0], s[1]每个端都可以进行读写
+
+7.socket在设置了nonblock之后，如果在send的时候还是出现errno ==
+EAGAIN；就需要扩大sendbuf来, setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
+		&new_buf,new_buf_size);然后继续::send调用。
+
+8.C++的function结构的使用： std::function<返回值（参数列表）> 函数对象------>>也就是函数指针
+	// store a free function
+    std::function<void(int)> f_display = print_num;
+    f_display(-9);
+ 
+    // store a lambda
+    std::function<void()> f_display_42 = []() { print_num(42); };	// 闭包
+    f_display_42();
+ 
+    // store the result of a call to std::bind
+    std::function<void()> f_display_31337 = std::bind(print_num, 31337); //std::bind 将函数与它所要的参数绑定起来并且返回一个function结构
+    f_display_31337();
+ 
+    // store a call to a member function
+    std::function<void(const Foo&, int)> f_add_display = &Foo::print_add;
+    const Foo foo(314159);
+    f_add_display(foo, 1);
+ 
+    // store a call to a member function and object
+    using std::placeholders::_1;
+    std::function<void(int)> f_add_display2= std::bind( &Foo::print_add, foo, _1 );		// 绑定类成员函数时，第二个参数是类实例，之后的参数才是函数调用所需要的参数
+    f_add_display2(2);
+ 
+    // store a call to a function object
+    std::function<void(int)> f_display_obj = PrintNum();			// struct xxx { operator()(){ ... } } xxx()返回一个function结构
+    f_display_obj(18);
+
+typedef std::function<void(int)> callback_fn;
+callback_fn fn_1 = .....;			// 函数回调的基本设置。
+
+
+9.通过socketpair或者pipe来完成框架内外层的通信（它相当于做了一个中间通信层），首先在框架内层监听pipe的read端或者socketpair的read事件，然后通过一个共享队列（外部多写，内部单读），当多路复用器监听到read事件，就取出队列中的一个事件进行处理。（libevent的event_msgqueue就是这么实现的）
+
+10. char vs wchar_t 和 string vs wstring
+ C++标准中，wchar_t是宽字符类型，每个wchar_t类型占2个字节，16位宽。汉字的表示就要用到wchar_t 。char，我们都知道，占一个字节，8位宽。
+其实知道了这个以后，要在wchar_t 和 char两种类型之间转换就不难实现了。wchar_t 转换为char 的代码如下： 
+有如下的wchar_t和char变量:
+wchar_t w_cn = '中'; char c_cn[2] = {'0'} ;
+
+char *C2W(wchar_t w_cn , char c_cn[2])
+
+{    //following code convert wchar to char 
+
+      c_cn[0] = w_cn >> 8 ;	// 高位存在前面
+
+      c_cn[1] = w_cn ;
+
+      c_cn[2] = '\0';
+
+      return c_cn ;
+}
+直接使用cout << w_cn << endl; 是不行的。
+
+
+11. 按照C++ Template最初的想法，模板不就是为了提供一个类型安全、易于调试的宏吗？有类型就够了，为什么要引入整型参数呢？考虑宏，它除了代码替换，还有一个作用是作为常数出现。所以整型模板参数最基本的用途，也是定义一个常数。例如这段代码的作用：
+
+template <typename T, int Size> struct Array
+{
+    T data[Size];
+};
+
+Array<int, 16> arr;
+因为模板的匹配是在编译的时候完成的，所以实例化模板的时候所使用的参数，也必须要在编译期就能确定。例如以下的例子编译器就会报错：
+template <int i> class A {};
+void foo()
+{
+    int x = 3;
+    A<5> a;         // 正确！
+    A<x> b;         // error C2971: '_1_3::A' : template parameter 'i' : 'x' : a local variable cannot be used as a non-type argument
+}
+
+
+12.从C++的优秀开源项目中可以发现，一个最小粒子的操作体结构是多么重要的一个设计。就像leveldb中的slice.
+
+
+===================================================================
+2014/03/03
+1.虚函数是不可能写成template模式的，因为template本身需要在编译时期验证它的正确性，而虚函数是在运行期做的特性。
+
+2.
+
+
+
