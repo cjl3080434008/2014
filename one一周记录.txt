@@ -537,3 +537,11 @@ operator T*()   // 是没有返回值的
 块设备可以随机读写---->就像硬盘。
 
 10.CopyOnWrite容器只能保证数据的最终一致性，不能保证数据的实时一致性。所以如果你希望写入的的数据，马上能读到，请不要使用CopyOnWrite容器。    COW的特点就是在write的时候 加锁拷贝出一份并修改替换。 read的时候是不用加锁的并发读
+
+
+===================================================================
+2014/03/10
+1.sem_wait(sem_t*); lock the semaphore, when the sem_t's value == 0, and block here, else return and running next code.
+sem_post(sem_t*);
+
+
