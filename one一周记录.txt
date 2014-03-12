@@ -314,6 +314,9 @@ VS 普通全局变量的区别在此。
 
 5. __asm__ volatile("" : : : "memory");
 使用在确定下面的代码不要被优化到上面去的时候就在那行代码上加入这个编译器指令来确保编译器不会对这段代码进行顺序优化。
+__asm__ volatile("mfence" : : : "memory"); 这是对CPU乱序的汇编级指令
+
+ 
 
 6.多线程编程中的锁的时候	<什么时候使用什么样的锁> ：
 			Mutex：属于sleep-waiting类型的锁.
@@ -543,5 +546,10 @@ operator T*()   // 是没有返回值的
 2014/03/10
 1.sem_wait(sem_t*); lock the semaphore, when the sem_t's value == 0, and block here, else return and running next code.
 sem_post(sem_t*);
+
+2.C++11中的move语义，　type &&move(type &&value){ return value;},可以将一个左值转化成一个右值。在多种值语义重载的时候有用（有些重载函数用到左值为参数，有些用到右值为参数,通过move语义可以调用右值为参数的重载，当右值被opeator = 的参数时，原来的右值就不再持有那个对象，这是一个对象专一的操作）
+
+3.
+
 
 
