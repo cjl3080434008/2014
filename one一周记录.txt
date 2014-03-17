@@ -549,7 +549,45 @@ sem_post(sem_t*);
 
 2.C++11中的move语义，　type &&move(type &&value){ return value;},可以将一个左值转化成一个右值。在多种值语义重载的时候有用（有些重载函数用到左值为参数，有些用到右值为参数,通过move语义可以调用右值为参数的重载，当右值被opeator = 的参数时，原来的右值就不再持有那个对象，这是一个对象专一的操作）
 
-3.
+3. 做名字匹配查找的时候，可以用STL的map<string, ptr>.
+然后用name_list.find(name); 来查找。  这是因为name_list在插入的时候根据string key排序，在查找的时候能快点。
+
+
+===================================================================
+2014/03/17
+1.网络库选型：libevent是一个不错的选择，不过对于有些应用，比如redis等都是自己实现一个简易的高并发网络库。
+对于http服务器的网络库推荐使用libevhtp库，它是对libevent自带的evhttp库的改进，且性能上比nginx的http服务更好。
+
+2.socket的send与recv调用的注意点：
+	send调用：当调用该函数时，send先比较待发送数据的长度len和套接字s的发送缓冲的长度，如果len大于s的发送缓冲区的长度，该函数返回SOCKET_ERROR；send函数只负责将数据拷贝到套接字s的发送缓存中而已，具体的发送操作由内核完成，如果内核发送缓冲区的剩余空间小于send提供的buf长度但总容量大于buf长度，则send就阻塞住直到内核将发送缓冲中的数据发送出去有足够的空间之后再copy过去（如果是非阻塞的send则立即返回0）。如果在内核发送数据的时候网路出错，再下一个socket调用的时候就会返回一个SOCKET_ERROR，因为（每一个除send外的Socket函数在执行的最开始总要先等待套接字的发送缓冲中的数据被协议传送完毕才能继续，如果在等待时出现网络错误，那么该Socket函数就返回SOCKET_ERROR）在Unix系统下，如果send在等待协议传送数据时网络断开的话，调用send的进程会接收到一个SIGPIPE信号，进程对该信号的默认处理是进程终止。
+
+	recv调用：recv先等待s的发送缓冲中的数据被协议传送完毕，如果协议在传送s的发送缓冲中的数据时出现网络错误，那么recv函数返回SOCKET_ERROR，如果s的发送缓冲中没有数据或者数据被协议成功发送完毕后，recv先检查套接字s的接收缓冲区，如果s接收缓冲区中没有数据或者协议正在接收数据，那么recv就一直等待，只到协议把数据接收完毕。当协议把数据接收完毕，recv函数就把s的接收缓冲中的数据copy到buf中（注意协议接收到的数据可能大于buf的长度，所以在这种情况下要调用几次recv函数才能把s的接收缓冲中的数据copy完。recv函数仅仅是copy数据，真正的接收数据是协议来完成的），recv函数返回其实际copy的字节数。如果recv在copy时出错，那么它返回SOCKET_ERROR；如果recv函数在等待协议接收数据时网络中断了，那么它返回0。注意：在Unix系统下，如果recv函数在等待协议接收数据时网络断开了，那么调用recv的进程会接收到一个SIGPIPE信号，进程对该信号的默认处理是进程终止。
+
+	所以在read于send的时候要用while(read()/write())来检测是否写完的操作。
+	
+
+3. C中的两种多版本函数的选择使用写法：（select, poll, epoll等的选择）
+一种在头文件中定义一个结构体 struct event_multiexplor{ 定义各种实现函数指针
+	void (*add)(...)  };
+
+另一种在头文件中定义静态方法声明， 并在实现文件中 epoll.c,kqueue.c等中对于同一个函数名的定义。最后在头文件中根据平台来include实现文件。
+
+4. getopt函数----> Normally, getopt is called in a loop. When getopt returns -1, indicating no more options are present, the loop terminates.(.......)
+
+5.时间的管理最好使用monotonic时钟类型。
+	检测：
+static void detect_monotonic(void)
+{
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+struct timespec ts;
+if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+use_monotonic = 1; // 系统支持monotonic时间
+#endif
+}
+Monotonic时间指示的是系统从boot后到现在所经过的时间。
+
+因为时间系统调用时一个耗时的系统调用，如果对性能要求比较高的时候，就需要换成时间，并在每次做time_correct()(如果是monotonic的就不用校正，否则要相应的做调整)，并且在循环的下一次开始之前更新缓存的时间。
+
 
 
 
