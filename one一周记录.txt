@@ -589,5 +589,46 @@ Monotonic时间指示的是系统从boot后到现在所经过的时间。
 因为时间系统调用时一个耗时的系统调用，如果对性能要求比较高的时候，就需要换成时间，并在每次做time_correct()(如果是monotonic的就不用校正，否则要相应的做调整)，并且在循环的下一次开始之前更新缓存的时间。
 
 
+6.ucontext.h		
+// 
+void makecontext(ucontext_t *ucp, void (*func)(),int argc, ...);
+The makecontext() function shall modify the context specified by ucp, which has been initialized using getcontext(). When this context is resumed using swapcontext() or setcontext(), program execution shall continue by calling func, passing it the arguments that follow argc in the makecontext() call.
+makecontext(&coro->ctx_, (void (*)(void))mainfunc, 1, this);
+int setcontext();
+int swapcontext(from, to);
+int getcontext(); //如果没有setcontext调用在前，则getcontext将初始化ucontext_t参数--->分配空间。之后需要我们自己进行
+context.uc_stack.ss_sp = char stack[size];
+context.uc_stack.ss_size = sizeof(stack);
+context.uc_link = 链到main_context(主scheduler的context)
+如果有setcontext则直接获取对应的ucontext_t数据。
+void
+Scheduler::Resume(int id) {
+  Coroutine *coro = coros_[id];
+
+  if (coro == NULL) {
+    return;
+  }
+  int status = coro->status_;
+  switch(status) { 
+  case kStatusReady:
+    getcontext(&coro->ctx_);
+    coro->ctx_.uc_stack.ss_sp = coro->stack_;
+    coro->ctx_.uc_stack.ss_size = kDefaulaStackSize;
+    coro->ctx_.uc_link = &main_;
+    running_ = id;
+    coro->status_ = kStatusRunning;
+    makecontext(&coro->ctx_, (void (*)(void))mainfunc, 1, this);
+    swapcontext(&main_, &coro->ctx_);
+    break;
+  case kStatusSuspend:
+    running_ = id;
+    coro->status_ = kStatusRunning;
+    swapcontext(&main_, &coro->ctx_);
+    break;
+  default:
+    break;
+  }
+}
 
 
+7.BOOST::asio的异步编程中比较烦的地方是，先像框架注册事件已经一个回调函数，并在回调函数中处理逻辑，最后又要往框架中重新注册一次该事件，这样循环往复。
