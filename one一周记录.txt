@@ -293,7 +293,7 @@ VS 普通全局变量的区别在此。
 　　3、终止：如果程序可以在某种条件下终止，那么在终止的时候，就可以得到自己想要的正确结果。 
 
 
-2. C++闭包------> 
+2. C++ lambda------> 
 
 []        Capture nothing (or, a scorched earth strategy?)
 [&]       Capture any referenced variable by reference
@@ -420,7 +420,11 @@ s[0], s[1]每个端都可以进行读写
 EAGAIN；就需要扩大sendbuf来, setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
 		&new_buf,new_buf_size);然后继续::send调用。
 
-8.C++的function结构的使用： std::function<返回值（参数列表）> 函数对象------>>也就是函数指针
+8.C++的function结构的使用： std::function<返回值（参数列表）> 函数对象------>>也可以用函数指针构造  （即需要的是一个callable的东西--->函数对象或者函数指针）
+关于函数对象的解释：A FunctionObject type is the type of an object that can be used on the left of the function call operator.
+
+std::bind(f, args); f ----> Callable object (function object, pointer to function, reference to function, pointer to member function, or pointer to data member) that will be bound to some arguments
+
 	// store a free function
     std::function<void(int)> f_display = print_num;
     f_display(-9);
@@ -661,3 +665,9 @@ struct iovec {
 
 
 10.new必须要对应到delete否则就应该用智能指针来管理，对于指针变量的set方法是致命的，因为它将使得我们失去对于那块new内存的管理索引，导致内存泄露！！！！
+
+11.linux下的多种IO函数， posix函数 read write针对的是fd其并没有设置用户态缓冲的特性。 而C标准的API fread fwrite函数则是针对流对象FILE*,进行操作，他们可以再用户态设置行缓冲，全缓冲已经不缓冲模式，这样可以降低陷入内核态的次数从而提高效率。 当然内核态中肯定也有相应的缓冲buf，而不是立即写入到磁盘中。
+
+12。
+
+
