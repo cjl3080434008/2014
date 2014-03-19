@@ -659,3 +659,5 @@ struct iovec {
 	size_t iov_len; /* Length in bytes */  
 };  
 
+
+10.new必须要对应到delete否则就应该用智能指针来管理，对于指针变量的set方法是致命的，因为它将使得我们失去对于那块new内存的管理索引，导致内存泄露！！！！
