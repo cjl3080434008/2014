@@ -632,3 +632,30 @@ Scheduler::Resume(int id) {
 
 
 7.BOOST::asio的异步编程中比较烦的地方是，先像框架注册事件已经一个回调函数，并在回调函数中处理逻辑，最后又要往框架中重新注册一次该事件，这样循环往复。
+
+8.进程内的线程共享的数据：
+	进程代码段、进程的公有数据(利用这些共享的数据，线程很容易的实现相互之间的通讯)、进程打开的文件描述符、信号的处理器、进程的当前目录和进程用户ID与进程组ID。
+
+9.
+ memcached  就是利用这两个数据结构配合上sendmsg来完成数据的传输。
+<sys/socket.h>
+sendmsg(Socketfd, struct msghdr *, int flags);
+recvmsg(Socketfd, struct msghdr *, int flags);
+
+struct msghdr
+{
+	void	*	msg_name;	/* Socket name			*/
+	int		msg_namelen;	/* Length of name		*/
+	struct iovec *	msg_iov;	/* Data blocks			*/
+	int		msg_iovlen;	/* Number of blocks		*/
+	void	*	msg_accrights;	/* Per protocol magic (eg BSD file descriptor passing) */
+	int		msg_accrightslen;	/* Length of rights list */
+};
+In the msghdr structure, the msg_name and msg_namelen members specify the source address if the socket is unconnected. If the socket is connected, the msg_name and msg_namelen members shall be ignored.
+
+<sys/uio.h>
+struct iovec {  
+	ptr_t iov_base; /* Starting address */  
+	size_t iov_len; /* Length in bytes */  
+};  
+
