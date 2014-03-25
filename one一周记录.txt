@@ -551,7 +551,16 @@ operator T*()   // 是没有返回值的
 1.sem_wait(sem_t*); lock the semaphore, when the sem_t's value == 0, and block here, else return and running next code.
 sem_post(sem_t*);
 
-2.C++11中的move语义，　type &&move(type &&value){ return value;},可以将一个左值转化成一个右值。在多种值语义重载的时候有用（有些重载函数用到左值为参数，有些用到右值为参数,通过move语义可以调用右值为参数的重载，当右值被opeator = 的参数时，原来的右值就不再持有那个对象，这是一个对象专一的操作）
+2.C++11中的move语义 <utility>，　type &&move(type &&value){ return value;},可以将一个左值转化成一个右值。在多种值语义重载的时候有用（有些重载函数用到左值为参数，有些用到右值为参数,通过move语义可以调用右值为参数的重载，当右值被opeator = 的参数时，原来的右值就不再持有那个对象，这是一个对象专一的操作）
+
+C++11还有一个std::move函数<algorithm>  OutputIt move( InputIt first, InputIt last, OutputIt d_first );
+Moves the elements in the range [first, last), to another range beginning at d_first.  OutputIt 指向d_first + (last-first);
+
+std::vector<Event> expired;
+std::move(byExpiration.begin(), end, std::back_inserter(expired));
+std::back_inerter(container) <iterator> --- return the iterator last from the container.
+
+
 
 3. 做名字匹配查找的时候，可以用STL的map<string, ptr>.
 然后用name_list.find(name); 来查找。  这是因为name_list在插入的时候根据string key排序，在查找的时候能快点。
@@ -668,6 +677,25 @@ struct iovec {
 
 11.linux下的多种IO函数， posix函数 read write针对的是fd其并没有设置用户态缓冲的特性。 而C标准的API fread fwrite函数则是针对流对象FILE*,进行操作，他们可以再用户态设置行缓冲，全缓冲已经不缓冲模式，这样可以降低陷入内核态的次数从而提高效率。 当然内核态中肯定也有相应的缓冲buf，而不是立即写入到磁盘中。
 
-12。
+12.BOOST::multi_index_container容器：   
+typedef  
+boost::multi_index_container<  
+    Student,				------------> 类型
+    indexed_by<				------------> 索引
+        ordered_unique<		------------> 唯一值索引
+                  // 学号是唯一值的索引  
+        tag<stu_num>,  BOOST_MULTI_INDEX_MEMBER(Student,unsigned int,stu_num)>,  
+            // 姓名是非唯一值的索引  
+                     ordered_non_unique<  
+        tag<stu_name>,BOOST_MULTI_INDEX_MEMBER(Student,std::string,stu_name)>,  
+                  // 年龄是非唯一值的索引  
+        ordered_non_unique<  -----------> 非唯一索引
+        tag<stu_age>, BOOST_MULTI_INDEX_MEMBER(Student,unsigned int,stu_age)>    
+    >  
+> StudentContainer;  
+
+
+13.上下文切换只能发生在内核态中。在类 Unix 系统中共存意味着当系统调用发生时 CPU 切换到内核态是必要的。这应该叫做模式切换而不是上下文切换，因为没有改变当前的进程
+
 
 
