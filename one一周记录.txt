@@ -576,7 +576,7 @@ std::back_inerter(container) <iterator> --- return the iterator last from the co
 
 	recv调用：recv先等待s的发送缓冲中的数据被协议传送完毕，如果协议在传送s的发送缓冲中的数据时出现网络错误，那么recv函数返回SOCKET_ERROR，如果s的发送缓冲中没有数据或者数据被协议成功发送完毕后，recv先检查套接字s的接收缓冲区，如果s接收缓冲区中没有数据或者协议正在接收数据，那么recv就一直等待，只到协议把数据接收完毕。当协议把数据接收完毕，recv函数就把s的接收缓冲中的数据copy到buf中（注意协议接收到的数据可能大于buf的长度，所以在这种情况下要调用几次recv函数才能把s的接收缓冲中的数据copy完。recv函数仅仅是copy数据，真正的接收数据是协议来完成的），recv函数返回其实际copy的字节数。如果recv在copy时出错，那么它返回SOCKET_ERROR；如果recv函数在等待协议接收数据时网络中断了，那么它返回0。注意：在Unix系统下，如果recv函数在等待协议接收数据时网络断开了，那么调用recv的进程会接收到一个SIGPIPE信号，进程对该信号的默认处理是进程终止。
 
-	所以在read于send的时候要用while(read()/write())来检测是否写完的操作。
+	所以在recv于send的时候要用while(recv()/write())来检测是否写完的操作。
 	
 
 3. C中的两种多版本函数的选择使用写法：（select, poll, epoll等的选择）
@@ -668,7 +668,7 @@ In the msghdr structure, the msg_name and msg_namelen members specify the source
 
 <sys/uio.h>
 struct iovec {  
-	ptr_t iov_base; /* Starting address */  
+	void *iov_base; /* Starting address */  
 	size_t iov_len; /* Length in bytes */  
 };  
 
