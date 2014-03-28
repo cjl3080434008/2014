@@ -698,4 +698,31 @@ boost::multi_index_container<
 13.上下文切换只能发生在内核态中。在类 Unix 系统中共存意味着当系统调用发生时 CPU 切换到内核态是必要的。这应该叫做模式切换而不是上下文切换，因为没有改变当前的进程
 
 
+14.first class function:
+the language supports passing functions as arguments to other functions, returning them as the values from other functions, and assigning them to variables or storing them in data structures.
 
+
+15.C++ <future>
+promise 对象可以保存某一类型 T 的值，该值可被 future 对象读取（可能在另外一个线程中），因此 promise 也提供了一种线程同步的手段。在 promise 对象构造时可以和一个共享状态（通常是std::future）相关联，并可以在相关联的共享状态(std::future)上保存一个类型为 T 的值。
+    std::promise<int> prom; // 生成一个 std::promise<int> 对象.
+    std::future<int> fut = prom.get_future(); // 和 future 关联.
+    std::thread t(print_int, std::ref(fut)); // 将 future 交给另外一个线程t.
+    prom.set_value(10); // 设置共享状态的值, 此处和线程t保持同步.
+    t.join();
+promise是一种线程间同步的C++特性机制。
+
+packaged_task  C++提供的任务对象它包装了一个可调用的对象，并且允许异步获取该可调用对象产生的结果，从包装可调用对象意义上来讲，std::packaged_task
+与 std::function 类似。只不过 std::packaged_task 将其包装的可调用对象的执行结果传递给一个 std::future 对象（该对象通常在另外一个线程中获取 std::packaged_task 任务的执行结果）。
+packaged_task内部包含两个对象----> （1）任务对象，（2）共享状态(shared state)，用于保存任务的返回值，可以通过 std::future 对象来达到异步访问共享状态的效果。
+    std::packaged_task<int(int,int)> task(countdown); // 设置 packaged_task
+    std::future<int> ret = task.get_future(); // 获得与 packaged_task 共享状态相关联的 future 对象.
+    std::thread th(std::move(task), 10, 0);   //创建一个新线程完成计数任务.
+    int value = ret.get();                    // 等待任务完成并获取结果.
+    std::cout << "The countdown lasted for " << value << " seconds.\n";
+    th.join();
+
+future  std::future可以用来获取异步任务的结果，因此可以把它当成一种简单的线程间同步的手段。调用 std::future::get 会阻塞当前的调用者，直到 Provider 设置了共享状态的值（此时共享状态的标志变为 ready），std::future::get 返回异步任务的值或异常（如果发生了异常）。
+ // call function asynchronously:
+    std::future < bool > fut = std::async(is_prime, 444444443);
+
+总结：future是一种C++新引进的线程间同步的机制，它可以由promise或者packaged_task构造并在调用结束之后返回设置该值。并被多个线程共享，future.get()获取共享的值，其在结果未返回之前阻塞。
