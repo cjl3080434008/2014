@@ -806,4 +806,30 @@ std::initializer_list can be used wherever you need an expression of the form of
 
 6. 预处理 ===> 编译 ====> 链接   对于预处理是由预处理器完成的，所以可以不用using引入预处理宏或方法，因为还没到编译阶段，编译器还没有介入。
 
-7.
+7.在python这种弱类型中，类型并不那么重要，重要的是接口，如果它走路像鸭子，叫声也像鸭子，我们就认为它是鸭子（起码在走路和叫声这样的行为上）。/***duck like ***/
+
+
+===================================================================
+2014/05/05
+1.sockaddr_in相当于end_point（addr, port）的linux下封装的结构体。
+std::string InetAddress::getIP()
+{
+	return inet_ntoa(m_addr.sin_addr);
+}
+
+uint16_t InetAddress::getPort()
+{
+	return ntohs(m_addr.sin_port);
+}
+
+2. 尾递归与递归的区别，在于尾递归必须return func();
+而递归一般是return func()+num;这样父调用栈就无法被清空因为需要记录num，所以可能出现stack overflow，而尾递归不需要记录num所以其父调用栈是没用的编译器会帮我们优化掉这个调用栈所以就不会出现stack overflow。
+
+3. freopen("data.in", "r", stdin);//重定向输入流
+   freopen("data.out", "w", stdout);//重定向输出流 
+   这样以后的scanf 与 printf都会被从这两个重定向的流中读写。
+
+4.不管是snprintf还是vsnprintf都只写入buff_size-1个字符进入到buff中，最后会补上一个'\0'的结束符，多余的数据被截断。
+
+5.问题的焦点在于：删除 ctx 不能立刻删除 mq ，这是因为 mq 可能还被 globalmq 引用。而 mq 中并没有记录 ctx 指针（保存 ctx 指针在多线程环境是很容易出问题的，因为你无非保证指针有效），而保存的是 ctx 的 handle 。
+
