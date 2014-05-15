@@ -541,6 +541,7 @@ operator T*()   // 是没有返回值的
 
 9.unix下的字符设备 VS 块设备
 字符设备需要顺序读写，且以字符为单位读写（字符可能是一个bytes,也可能是多个bytes，因为编码格式）
+
 块设备可以随机读写---->就像硬盘。
 
 10.CopyOnWrite容器只能保证数据的最终一致性，不能保证数据的实时一致性。所以如果你希望写入的的数据，马上能读到，请不要使用CopyOnWrite容器。    COW的特点就是在write的时候 加锁拷贝出一份并修改替换。 read的时候是不用加锁的并发读
@@ -675,7 +676,7 @@ struct iovec {
 
 10.new必须要对应到delete否则就应该用智能指针来管理，对于指针变量的set方法是致命的，因为它将使得我们失去对于那块new内存的管理索引，导致内存泄露！！！！
 
-11.linux下的多种IO函数， posix函数 read write针对的是fd其并没有设置用户态缓冲的特性。 而C标准的API fread fwrite函数则是针对流对象FILE*,进行操作，他们可以再用户态设置行缓冲，全缓冲已经不缓冲模式，这样可以降低陷入内核态的次数从而提高效率。 当然内核态中肯定也有相应的缓冲buf，而不是立即写入到磁盘中。
+11.linux下的多种IO函数， posix函数 read write针对的是fd其并没有设置用户态缓冲的特性。 而ANSI C标准的API fread fwrite函数则是针对流对象FILE*,进行操作，他们可以再用户态设置行缓冲，全缓冲已经不缓冲模式，这样可以降低陷入内核态的次数从而提高效率。 当然内核态中肯定也有相应的缓冲buf，而不是立即写入到磁盘中。
 
 12.BOOST::multi_index_container容器：   
 typedef  
@@ -832,4 +833,61 @@ uint16_t InetAddress::getPort()
 4.不管是snprintf还是vsnprintf都只写入buff_size-1个字符进入到buff中，最后会补上一个'\0'的结束符，多余的数据被截断。
 
 5.问题的焦点在于：删除 ctx 不能立刻删除 mq ，这是因为 mq 可能还被 globalmq 引用。而 mq 中并没有记录 ctx 指针（保存 ctx 指针在多线程环境是很容易出问题的，因为你无非保证指针有效），而保存的是 ctx 的 handle 。
+我之前的错误在于，我以为只要把 mq 的删除指责扔给 globalmq 就可以了。当 ctx 销毁的那一刻，检查 mq 是否在 globalmq 中，如果不在，就重压入 globalmq 。等工作线程从 globalmq 中取出 mq ，从其中的 handle 找不到配对的 ctx 后，再将 mq 销毁掉。
+问题就在这里。handle 和 ctx 的绑定关系是在 ctx 模块外部操作的（不然也做不到 ctx 的正确销毁），无法确保从 handle 确认对应的 ctx 无效的同时，ctx 真的已经被销毁了。所以，当工作线程判定 mq 可以销毁时（对应的 handle 无效），ctx 可能还活着（另一个工作线程还持有其引用），持有这个 ctx 的工作线程可能正在它生命的最后一刻，向其发送消息。结果 mq 已经销毁了。
+解决方法：  
+当 ctx 销毁前，由它向其 mq 设入一个清理标记。然后在 globalmq 取出 mq ，发现已经找不到 handle 对应的 ctx 时，先判断是否有清理标记。如果没有，再将 mq 重放进 globalmq ，直到清理标记有效，在销毁 mq 。
+
+
+6.云风关于多线程并发消息队列的设计：
+采用的是二级消息队列机制，既用一个global message queue来管理所有的二级message queue，二级message queue与一个服务一一对应，当有消息需要处理的时候将二级message queue压入到global message queue中，多个工作线程只对global message queue处理。
+工作线程的操作： 取出global message queue中的一个二级message queue（这样是为了保证游戏逻辑在一个线程中被处理，防止多线程并发），而且一次只处理一个消息，然后处理完以后如果二级message queue中还有消息则将它又压入到global message queue中去；如果没有message了就不再压入到global message queue中。
+
+7.对于log日志频繁插入的优化，如果单线程只是insert或者Update操作可以使用
+INSERT INTO testLog2(a, b, c, d) VALUES (1,2,3,4)(2,3,4,5)(3,4,5,6)
+这样批量INSERT，能接近万条/s。 否则每秒大概只有1K条数据的insert.
+
+8.从伟哥的战斗服的代码中学到的一个技巧。
+void (class_name::*type_name[])(function_param);
+type_name[0] = &class_name::func_name;
+
+===================================================================
+2014/05/12
+1.socket.close调用 vs shutdown:
+在多进程中如果一个进程中shutdown(sfd, SHUT_RDWR)后其它的进程将无法进行通信. 如果一个进程close(sfd)将不会.  因为多进程共享socket的时候close是采用引用计数的方式知道==0的时候才真正释放socket。
+当socket.close调用的时候，如果发送缓冲区中还有数据未放送或者接收缓冲区中还有数据未读完会出现什么情况？
+（1.） 默认情况下(不改变socket选项)，当你调用close( or closesocket，以下说close不再重复)时，如果
+发送缓冲中还有数据，TCP会继续把数据发送完。因为close的是要4次握手才结束的，所以会马上发送一个fin包数据，它也会被放到内核的缓冲区中所有前面的数据是一定会被发送出去的。
+此时也关闭了全双工的写端。对端收到fin包然后发送一个ack包出去。 然后通知应用层关闭socket，当应用层调用close关闭socket关闭写端，并最后发送一个fin包出去，对端收到fin包以后确认连接已经关闭等待MSL时间关闭连接，并马上发送ack包， client接收到ack包以后释放socket资源。
+如果client不调用close，那么对端就会处于FIN_WAIT_2状态，而本端则会处于CLOSE_WAIT状态。
+
+TIME_WAIT状态所带来的影响：
+当某个连接的一端处于TIME_WAIT状态时，该连接将不能再被使用。事实上，对于我们比较有现实意义的
+是，这个端口将不能再被使用。某个端口处于TIME_WAIT状态(其实应该是这个连接)时，这意味着这个TCP
+连接并没有断开(完全断开)，那么，如果你bind这个端口，就会失败。
+对于服务器而言，如果服务器突然crash掉了，那么它将无法再2MSL内重新启动，因为bind会失败。解决这
+个问题的一个方法就是设置socket的SO_REUSEADDR选项。这个选项意味着你可以重用一个地址。
+
+
+2.
+#define ARG_NEW(Pointer, Class, ...) \
+    do \
+    { \
+        try \
+        { \
+            Pointer = new Class(__VA_ARGS__); \
+        } \
+        catch (...) \
+        { \
+            Pointer = NULL; \
+        } \
+    } \
+    while (0)
+#endif
+__VA_ARGS__ 表示不定参数的宏表示
+
+
+
+
+
 
