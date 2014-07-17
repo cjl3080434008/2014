@@ -677,6 +677,7 @@ struct iovec {
 10.new必须要对应到delete否则就应该用智能指针来管理，对于指针变量的set方法是致命的，因为它将使得我们失去对于那块new内存的管理索引，导致内存泄露！！！！
 
 11.linux下的多种IO函数， posix函数 read write针对的是fd其并没有设置用户态缓冲的特性。 而ANSI C标准的API fread fwrite函数则是针对流对象FILE*,进行操作，他们可以再用户态设置行缓冲，全缓冲已经不缓冲模式，这样可以降低陷入内核态的次数从而提高效率。 当然内核态中肯定也有相应的缓冲buf，而不是立即写入到磁盘中。
+fwrite是带缓存的，也就是说你调用fwrite并不是马上就陷入内核，而是先放到缓存中，当缓存了一定数量以后再陷入内核调用copy数据到内核缓存中并且等待flush.
 
 12.BOOST::multi_index_container容器：   
 typedef  
@@ -887,7 +888,117 @@ TIME_WAIT状态所带来的影响：
 __VA_ARGS__ 表示不定参数的宏表示
 
 
+3. taobao网络库中学到的一点技术：
+class TimerTaskCompare : public std::binary_function<TimerTaskPtr, TimerTaskPtr, bool>
+    {
+    public:
+        
+        bool operator()(const TimerTaskPtr& lhs, const TimerTaskPtr& rhs) const
+        {
+            return lhs.get() < rhs.get();
+        }
+    };
 
 
+4.pthread_cond_wait(&cond,&mutex)是一个原子操作，当它执行时，首先对mutex解锁，这样另外的线程才能得到锁来修改条件，pthread_cond_wait解锁后，再将本身的线程/进程投入睡眠，另外，当该函数返回时，会再对mutex进行加锁，这样才能“执行某种操作”后unlock锁。
+
+===================================================================
+2014/05/19
+1.如果直接用time(NULL)/86400这样来获取天数的话，可能不会出现时区不对导致的提前或者延后几小时。如果用time_t或者tm则没这个问题。
+如果非要time(NULL)则需要用abs(timezone)来校对时区。
+
+===================================================================
+2014/05/28
+1.智能指针weak_ptr的提升api---->  lock() return对应的shared_ptr， 然后调用get()可以获取shared_ptr中的原始指针。（get是shared_ptr的api）
+
+2.获取文件state信息 
+<sys/stat>
+struct stat file_state;
+fstat(fd ,&file_state);
+if (S_ISREG(statbuf.st_mode)) // 常规文件
+{
+	*fileSize = statbuf.st_size;
+	content->reserve(static_cast<int>(std::min(implicit_cast<int64_t>(maxSize), *fileSize)));
+}
+else if (S_ISDIR(statbuf.st_mode))
+{
+	err = EISDIR;
+}
+if (modifyTime)
+{
+	*modifyTime = statbuf.st_mtime;
+}
+if (createTime)
+{
+	*createTime = statbuf.st_ctime;
+}
+}
+else
+{
+	err = errno;
+}
+}
+
+while (content->size() < implicit_cast<size_t>(maxSize))
+{
+	// 取得相对小的size
+	size_t toRead = std::min(implicit_cast<size_t>(maxSize) - content->size(), sizeof(buf_));
+	ssize_t n = ::read(fd_, buf_, toRead);
+	if (n > 0)
+	{
+		content->append(buf_, n);
+	}
+	else
+	{
+		if (n < 0)
+		{
+			err = errno;
+		}
+		break;
+	}
+}
 
 
+3.只有像vector和string这种有reserve函数的容器才需要 vec.swap(vector());来设置一个新的空的vector。其他容器只要.clear()就行。
+
+4.接入腾讯接口的时候，用户发上来的第一个包是tgw的包，需要对他进行特殊处理。
+void engine::receive_head(end_point_ptr ep)
+{
+	if (ep->tgw())
+	{
+		async_read(*(ep->_sock), 
+			buffer((void*)ep->_tgw_buf, TGWSize),
+			bind(&engine_handler::receive_head_handler, _net_handler, ep, 
+			placeholders::error,
+			placeholders::bytes_transferred));
+	}
+receive_head_handler()
+if(!ec)
+	{
+		if (ep->tgw())
+		{
+			BOOST_ASSERT(size==TGWSize);
+			ep->set_tgw(false);
+			_engine->receive_head(ep);
+		}
+
+===================================================================
+2014/06/05
+1.数据库中一个变量的值为timestamp 则在insert的时候不用赋值它，数据库会自动添加上当前的时间。
+
+
+2014/07/09
+1.C++ hash_map的使用，效率比map高不少。
+#include <ext/hash_map>
+typedef __gnu_cxx::hash_map<uint64_t, Connection*, __gnu_cxx::hash<int> > TBNET_CONN_MAP;
+
+2014/07/15
+1.future技术， 将请求交给一个future来执行，期间可以做任何其他的事情，一段时间后去future中取结果。 future一般提供查询接口用来查询请求是否完成。
+go中的future技术， 通过阻塞的channel来实现，可以用一个goroutine来select channel来等待结果，并且回传给主逻辑执行。
+
+
+2014/07/17
+1.有些语言中有类（抽象类）、接口这两种组织结构 like JAVA , 而有些语言并没有接口 like C++, 其本质都是利用多态的运行时类型绑定来完成函数调用。 组织代码的时候应该尽量用接口、抽象类来作为对象之间的依赖，这样可以降低耦合，增强扩展性。
+
+2.函数指针 === void (*f)(void); f = 具体函数的函数名， 调用的时候当时具体函数的函数名的时候它就表示函数函数指针只要直接   func_name()，就可以了； 
+当时函数指针的时候需要 (*f)(), 当需要在函数内赋值函数变量的时候，需要传入函数指针才行。因为是值拷贝语义，可能只是local update.
