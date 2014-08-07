@@ -159,6 +159,9 @@ SIGSTOP是不能被屏蔽的信号，而一般而言在程序开始的时候都�
 weak_ptr由shared_ptr构造conn信息原始是保存在shared_ptr中的。在entry的析构函数中会主动提升weak_ptr，如果返回的是null
 ptr则conn对象已经被释放，如果不是Null则需要手动释放。在析构桶数据的时候析构shared_ptr（shared_ptr减少对象的引用计数知道为0的时候析构对象）。
 
+shared_ptr<void> 可以持有任何对象，而且能安全地释放。 
+shared_ptr在构造的时候还提供第二个参数，一个destroy函数指针，在有些我们频繁创建对象但又不怎么检测对象是否存活的场景下（内存会出现泄露的现象），我们可以直接在shared_ptr中传入destroy函数指针，当shared_ptr对象refcount == 0的时候析构会调用这个destroy函数。
+
 5.yacc & lex编写简单的编译器
 通过lex来编写简单的词法分析程序
 
@@ -742,6 +745,9 @@ typedef enum memory_order {
     memory_order_seq_cst    // sequentially consistent
 } memory order;
 
+Acquire语义禁止read-acquire之后所有的内存读写操作，被提前到read-acquire操作之前进行。）
+Release语义禁止write-release之前所有的内存读写操作，被推迟到write-release操作之后进行。）
+
 method:
 	load(), store(value), fetch_add(), fetch_sub(), operator=, operator T
 
@@ -1002,3 +1008,184 @@ go中的future技术， 通过阻塞的channel来实现，可以用一个gorouti
 
 2.函数指针 === void (*f)(void); f = 具体函数的函数名， 调用的时候当时具体函数的函数名的时候它就表示函数函数指针只要直接   func_name()，就可以了； 
 当时函数指针的时候需要 (*f)(), 当需要在函数内赋值函数变量的时候，需要传入函数指针才行。因为是值拷贝语义，可能只是local update.
+
+
+
+
+2014/07/28
+1. c++11 chrono库
+class duration<class Rep, class Period = ratio> ===> 
+std::ratio<60*60*24> 一天的durating.
+
+class system_clock; ===>  now()返回当前的时间。
+class system_clock::time_point ==> 当前的时刻信息。
+system_clock::time_point today;
+std::time_t tt;
+tt = system_clock::to_time_t(today);
+ctime(&tt);  ===> 格式化输出
+
+class milliseconds、 microseconds、 nanoseconds;
+
+
+2. uint64_to_str & int64_to_str 中sprintf("%" PRIu64 "", ) & sprintf("%" PRId64 "");
+
+
+3. strftime(tmbuf, sizeof(tmbuf), "%Y/%m/%d %H:%M:%S", localtime(&t)); // 时间格式化函数
+
+
+2014/08/05
+1.C/C++中我们获取到了函数的起始地址如果调用这个函数。 ===> 通过typedef 出这个函数的原型然后调用执行它。 typedef void (*func)(void *);   func ptr= func(addr);
+====> 调用 ftr();
+
+2. socket编程中当client发出close的时候服务端要怎么正确的处理行为。  ===>
+	(1)当连接建立以后，如果在读写事件到来以后，读写出错则直接close连接。
+	(2)主动断开一个连接，则shutdown(socket_fd, SHUT_WR); 关闭该连接的写端（会发送Fin包它在所有已经发出在socket内核发出缓存之后，所以已经发出但没发到的数据还是会被发出去。），对端会read()调用返回0，然后主动关闭连接close()（这个我们需要提前和客户端的程序员商量好。）; 半关闭状态的连接在read()到fin的时候close()连接。
+	如果对端故意在read()返回0的时候不关闭连接，使用心跳来控制，超时的时候close()掉连接。 因为close在多线程下之似乎ref_count减减的操作，当ref_count=0的时候就真正的close掉连接然后进入
+	TIME_WAIT状态等待2MSL时间socket才能重用。
+	(3)当调用connect的时候如果返回连接建立则socket_state = connected； 如果返回errno == EINPROGRESS || EWOULDBLOCK 则监听socket的读写端，并心跳中检测是否建立成功，不是则close()连接
+	否则就直接close()连接。   ===== EWOULDBLOCK可能是网卡忙碌或者暂时不可用。EINPROGRESS 正在处理。 非阻塞情况下的EAGAIN错误表示让程序再试一次看看。  当正在连接的socket的写端事件到来的时候如果socket有错误产生(getsockopt调用)则表示连接建立失败则关闭socket。否则就讲socket_state变为connected已连接状态并且设置写端事件以及清除outputbuff防止socket重用而导致的数据残留。
+EWOULDBLOCK && EAGAIN 都是在非阻塞下才会发生的errno.
+	int error;
+	socklen_t len = sizeof(error);  
+	int code = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &error, &len);  
+	if (code < 0 || error) {  
+		force_close(ss,s, result);
+		return SOCKET_ERROR;
+	} else {
+		s->type = SOCKET_TYPE_CONNECTED;
+		if (send_buffer_empty(s)) {
+			sp_write(ss->event_fd, s->fd, s, false);
+		}
+	}
+
+
+	(4)简单粗暴一点的做法就是当connect有错误返回的时候直接return。<不过这样应该会有效率损失以及socket暂时不可用的情况，好的网络库都会处理connecting状态>
+
+
+
+3. union可以当一个type定义变量，也可以裸在那，他们内部名字自动的集成到外部的命名空间查找中。 只要直接所有内部的变量就可以找到数据。
+struct xxx{
+	union{
+		uint32_t aa;	
+	};
+};
+struct xxx b; b.aa = 33;
+
+typedef struct xxx{
+	union{
+		uint32_t *aa;	
+		list *list;
+	} test_u;
+}union_type;
+struct xxx b; b.test_u.aa = 33;
+union数据类型一次应该分配多少内存？  如果我们使用sizeof(union_type)那么获得的一定是最大变量的内存对齐之后的大小。 但是在实际的应用中我们未必一定要malloc(sizeof(union_type)); 我们可以根据程序的实际情况（也许在哪个场景下我们知道它只可能是其中的一种则直接分配那一种就行。）
+union_type a;  a.test_u.aa = calloc(size, sizeof(uint32_t));
+// get union nst num
+void get_nst_value(union_type *u, uint8_t nst)
+{
+	uint32_t *begin = u->test_u.aa;
+	if(nst <= sizeof(u->test_u.aa)/sizeof(*begin))
+		return begin+nst-1;
+	return NULL;
+}
+
+4.std::bind也会将参数进行拷贝，如果是利用引用计数管理的，那么这个对象的生命周期至少不会小于这个std::function的生命周期。 我们可以使用weak_ptr来实现一种弱回调，每次回调std::function的时候只要在ptr.get()存活的时候才调用。
+
+
+5. 整数除法，当有负数的时候商是向0取整的（C++/C/JAVA都是这种规则，而python/perl不是） ==>　既 -13/4 = -3 (-13 % 4 = -1) 而不是-4 (-13 % 4 = 1)、
+itoa的一种很不错的实现：
+void itoa(char *buf, int value)
+{
+	static char digits[19] =  
+    { '9', '8', '7', '6', '5', '4', '3', '2', '1',  
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };  
+	static char *zero = digits+9;
+	
+	char *p = buf;
+	do{
+		int ys = value % 10;
+		value /= 10;		// 这里就设计到上面的向0取整还是不向0取整，这个算法适合向0取整
+		*p++ = *(zero+ys);
+	}while(value != 0);
+	if(value < 0)
+		*p++ = '-';
+	*p= '\0';
+	std::reverse(buf, p);
+}
+
+6.输出int64的参数值  printf("%I64d", );
+
+7.__thread是GCC内置的线程局部存储设施，存取效率可以和全局变量相比。__thread变量每一个线程有一份独立实体，各个线程的值互不干扰。可以用来修饰那些带有全局性且值可能变，但是又不值得用全局变量保护的变量。
+注意点: 只能修饰POD类型
+C++0x introduces the thread_local keyword. Aside that, various C++ compiler implementations provide specific ways to declare thread-local variables:
+Sun Studio C/C++, IBM XL C/C++, GNU C and Intel C/C++ (Linux systems) use the syntax:
+    __thread int number;
+
+Visual C++, Intel C/C++ (Windows systems), Borland C++ Builder and Digital Mars C++ use the syntax:
+    __declspec(thread) int number;
+
+Borland C++ Builder also supports the syntax:
+    int __thread number;
+So, whilst __thread does exist in practice and on some systems, thread_local is the new, official, C++0x keyword that does the same thing.
+Prefer it to non-standard __thread whenever you have access to C++0x.
+
+8.pthread_cond_wait必须在while条件循环中进行，如果不在while循环下则可能出现的问题是当另一个线程将while条件设置成false且还没有signal就解锁了，此时wait线程
+
+pthread_cond_wait会释放mutex锁并且将线程进入等待。
+
+// Version 2: signal in lock
+// Incorrect, could lose signal
+class Waiter2 : private WaiterBase
+{
+ public:
+  void wait()
+  {
+    CHECK_SUCCESS(pthread_mutex_lock(&mutex_));
+    CHECK_SUCCESS(pthread_cond_wait(&cond_, &mutex_));
+    CHECK_SUCCESS(pthread_mutex_unlock(&mutex_));
+  }
+ 
+  void signal()
+  {
+    CHECK_SUCCESS(pthread_mutex_lock(&mutex_));
+    CHECK_SUCCESS(pthread_cond_signal(&cond_));
+    CHECK_SUCCESS(pthread_mutex_unlock(&mutex_));
+  }
+};
+这里如果wait一次然后signal两次然后再wait其实是不应该进入wait状态的(因为这时候mq里面有2个可以消费，而假设第一个wait唤醒以后消费完了)，而如果加了条件判定那么signal的时候会改变条件变量的状态我们就知道被唤醒了就没有漏洞signal.
+ 而如果再while下一次消费一个不会丢失会被唤醒两次，而如果一次消费完则下次wait的时候又被signal然后检测条件变量为否又继续wait.
+
+// Version 3: add a boolean member
+// Incorrect, spurious wakeup
+class Waiter3 : private WaiterBase
+{
+ public:
+  void wait()
+  {
+    CHECK_SUCCESS(pthread_mutex_lock(&mutex_));
+    if (!mq.empty())
+    {
+      CHECK_SUCCESS(pthread_cond_wait(&cond_, &mutex_));
+    }
+
+	// do something consume the mq.
+	
+    CHECK_SUCCESS(pthread_mutex_unlock(&mutex_));
+  }
+ 
+  void signal()
+  {
+    CHECK_SUCCESS(pthread_mutex_lock(&mutex_));
+	mq.add();
+    CHECK_SUCCESS(pthread_cond_signal(&cond_));
+    CHECK_SUCCESS(pthread_mutex_unlock(&mutex_));
+  }
+ 
+ private:
+	mq;
+};
+spurious wakeup 指的是一次 signal() 调用唤醒两个或以上 wait()ing 的线程，或者没有调用 signal() 却有线程从 wait() 返回(注意： 这里很重要假唤醒不一定是signal和boardcast调用而引起的唤醒可能是系统的其他信号)。manpage 里对 Pthreads 系列函数的介绍非常到位，值得细读。
+如果add和唤醒两次，之后再wakeup且把mq消费光，则第二次唤醒就会出现虚假唤醒，因为没有东西可以消费。
+
+将条件变量控制在while内这样第二次唤醒的时候再检查条件变量发现又是empty所以就继续wait.
+
